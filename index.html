@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Senha Triaxx</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #16213e;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        h1 {
+            text-align: center;
+            color: #4ecca3;
+            margin-bottom: 8px;
+            font-size: 1.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-size: 0.95rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 1rem;
+            font-family: monospace;
+            text-align: center;
+            letter-spacing: 1px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4ecca3;
+        }
+
+        input[type="text"]::placeholder {
+            color: #666;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 16px;
+            border: none;
+            border-radius: 10px;
+            background: #4ecca3;
+            color: #1a1a2e;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background: #3dbb91;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .result {
+            margin-top: 24px;
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            background: #0f3460;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result-label {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4ecca3;
+            font-family: monospace;
+        }
+
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .history {
+            margin-top: 24px;
+            border-top: 1px solid #333;
+            padding-top: 16px;
+        }
+
+        .history h3 {
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #0f3460;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            font-family: monospace;
+        }
+
+        .history-item .code {
+            color: #aaa;
+        }
+
+        .history-item .pwd {
+            color: #4ecca3;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Gerador Triaxx</h1>
+        <p class="subtitle">Gere senhas a partir do código HEX de 10 bytes</p>
+
+        <label for="hexInput">Código HEX:</label>
+        <input type="text" id="hexInput" placeholder="00-XX-18-XX-23-XX-XX-XX-XX-XX" maxlength="29">
+
+        <button onclick="calcularSenha()">Gerar Senha</button>
+
+        <p class="error" id="error"></p>
+
+        <div class="result" id="result">
+            <p class="result-label">Senha gerada:</p>
+            <p class="result-value" id="senha"></p>
+        </div>
+
+        <div class="history" id="historySection" style="display:none;">
+            <h3>Histórico recente:</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        let history = JSON.parse(localStorage.getItem('triaxxHistory') || '[]');
+        renderHistory();
+
+        function calcularSenha() {
+            const input = document.getElementById('hexInput').value.trim().toUpperCase();
+            const errorEl = document.getElementById('error');
+            const resultEl = document.getElementById('result');
+            const senhaEl = document.getElementById('senha');
+
+            errorEl.classList.remove('show');
+            resultEl.classList.remove('show');
+
+            // Validar formato
+            const parts = input.split('-');
+            if (parts.length !== 10) {
+                showError('Formato inválido. Use 10 bytes separados por hífen (ex: 00-09-18-E4-23-FC-C9-4E-C3-AC)');
+                return;
+            }
+
+            const bytes = [];
+            for (let i = 0; i < 10; i++) {
+                const val = parseInt(parts[i], 16);
+                if (isNaN(val) || parts[i].length !== 2) {
+                    showError('Byte inválido na posição ' + i + ': "' + parts[i] + '"');
+                    return;
+                }
+                bytes.push(val);
+            }
+
+            const [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9] = bytes;
+
+            // Algoritmo Triaxx
+            const K1 = b5 ^ b8 ^ 0x23;
+            const K3 = b6 ^ b7 ^ b9 ^ 0x18;
+            const baixo = b1 ^ K1;
+            const alto = b3 ^ K3;
+            const senha = baixo + 256 * alto;
+
+            // Mostrar resultado
+            senhaEl.textContent = senha;
+            resultEl.classList.add('show');
+
+            // Salvar no histórico
+            history.unshift({ code: input, pwd: senha });
+            if (history.length > 10) history.pop();
+            localStorage.setItem('triaxxHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function showError(msg) {
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = msg;
+            errorEl.classList.add('show');
+        }
+
+        function renderHistory() {
+            const section = document.getElementById('historySection');
+            const list = document.getElementById('historyList');
+
+            if (history.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = history.map(item =>
+                `<div class="history-item">
+                    <span class="code">${item.code}</span>
+                    <span class="pwd">${item.pwd}</span>
+                </div>`
+            ).join('');
+        }
+
+        // Permitir Enter para calcular
+        document.getElementById('hexInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') calcularSenha();
+        });
+    </script>
+</body>
+</html>
